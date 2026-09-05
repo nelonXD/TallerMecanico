@@ -1,5 +1,6 @@
-﻿using TallerMecanico.Models;
+using TallerMecanico.Models;
 using TallerMecanico.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -25,8 +26,9 @@ namespace TallerMecanico.Endpoints
             user.MapPost("/login", async (LoginRequest login, TallerMecanicoDbContext db,
                 IConfiguration config) =>
             {
-                var usuario = db.Usuarios.FirstOrDefault(
-                    u => u.Nombre == login.NombreUsuario);
+                var usuario = db.Usuarios
+                    .Include(u => u.Rol)
+                    .FirstOrDefault(u => u.Nombre == login.NombreUsuario);
 
                 if (usuario is null)
                     return Results.Unauthorized();
