@@ -1,12 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
+using TallerMecanico.ValidacionesDTO;
 namespace TallerMecanico.Endpoints
 {
     public static class ServicioApi
     {
         public static void MapServicioApi(this WebApplication app)
         {
-            var servicio = app.MapGroup("/api/servicios").WithTags("Servicios");
+            var servicio = app.MapVersionedV1Group("servicios", "Servicios");
 
             servicio.MapGet("/", async (TallerMecanicoDbContext db) => await db.Servicios.ToListAsync());
 
@@ -16,20 +17,33 @@ namespace TallerMecanico.Endpoints
                 return servicio is not null ? Results.Ok(servicio) : Results.NotFound();
             });
 
-            servicio.MapPost("/", async (Servicio servicio, TallerMecanicoDbContext db) =>
+            servicio.MapPost("/", async (ServicioDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var servicio = new Servicio
+                {
+                    Nombre = dto.Nombre,
+                    Descripcion = dto.Descripcion,
+                    Costo = dto.Costo
+                };
+
                 db.Servicios.Add(servicio);
                 await db.SaveChangesAsync();
-                return Results.Created($"/api/servicios/{servicio.ServicioId}", servicio);
+                return Results.Created($"/api/v1/servicios/{servicio.ServicioId}", servicio);
             });
 
-            servicio.MapPut("/{id:int}", async (int id, Servicio updatedServicio, TallerMecanicoDbContext db) =>
+            servicio.MapPut("/{id:int}", async (int id, ServicioDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
                 var servicio = await db.Servicios.FindAsync(id);
                 if (servicio is null) return Results.NotFound();
-                servicio.Nombre = updatedServicio.Nombre;
-                servicio.Descripcion = updatedServicio.Descripcion;
-                servicio.Costo = updatedServicio.Costo;
+                
+                servicio.Nombre = dto.Nombre;
+                servicio.Descripcion = dto.Descripcion;
+                servicio.Costo = dto.Costo;
+                
                 await db.SaveChangesAsync();
                 return Results.NoContent();
             });

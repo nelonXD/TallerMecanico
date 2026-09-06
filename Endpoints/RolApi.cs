@@ -1,12 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
+using TallerMecanico.ValidacionesDTO;
 namespace TallerMecanico.Endpoints
 {
     public static class RolApi
     {
         public static void MapRolApi(this WebApplication app)
         {
-            var rol = app.MapGroup("/api/rol").WithTags("Rol");
+            var rol = app.MapVersionedV1Group("rol", "Rol");
 
             rol.MapGet("/",async(TallerMecanicoDbContext db) => await db.Roles.ToListAsync());
 
@@ -16,19 +17,31 @@ namespace TallerMecanico.Endpoints
                 return rol is not null ? Results.Ok(rol) : Results.NotFound();
             });
 
-            rol.MapPost("/", async (Role rol, TallerMecanicoDbContext db) =>
+            rol.MapPost("/", async (RolDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var rol = new Role
+                {
+                    Nombre = dto.Nombre,
+                    Descripcion = dto.Descripcion
+                };
+
                 db.Roles.Add(rol);
                 await db.SaveChangesAsync();
-                return Results.Created($"/api/rol/{rol.RolId}", rol);
+                return Results.Created($"/api/v1/rol/{rol.RolId}", rol);
             });
 
-            rol.MapPut("/{id:int}", async (int id, Role rol, TallerMecanicoDbContext db) =>
+            rol.MapPut("/{id:int}", async (int id, RolDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
                 var existingRol = await db.Roles.FindAsync(id);
                 if (existingRol is null) return Results.NotFound();
-                existingRol.Nombre = rol.Nombre;
-                existingRol.Descripcion = rol.Descripcion;
+                
+                existingRol.Nombre = dto.Nombre;
+                existingRol.Descripcion = dto.Descripcion;
+                
                 await db.SaveChangesAsync();
                 return Results.NoContent();
             });

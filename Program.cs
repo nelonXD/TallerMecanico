@@ -4,14 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
 using System.Threading.RateLimiting;
-using FluentValidation;
 using Asp.Versioning;
 using TallerMecanico.Endpoints;
 using TallerMecanico.Models;
 using TallerMecanico.Services;
 using TallerMecanico.Repositories;
 using TallerMecanico.Middlewares;
-using TallerMecanico.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,11 +24,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidateAudience = false,
+                ValidateAudience = true,
                 ValidateIssuerSigningKey = true,
                 ValidateLifetime = true,
                 ValidIssuer = jwtIssuer,
-                ValidAudience = jwtAudience,
+                ValidAudience = jwtAudience ?? throw new InvalidOperationException("Jwt:Audience is missing."),
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(jwtKey ?? throw new InvalidOperationException("Jwt:Key is missing.")))
             };
@@ -45,10 +43,7 @@ builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 builder.Services.AddScoped<IOrdenesTrabajoRepository, OrdenesTrabajoRepository>();
 builder.Services.AddScoped<AuthService>();
 
-// --- 3. Validacion (FluentValidation) ---
-builder.Services.AddValidatorsFromAssemblyContaining<ClienteValidator>();
-
-// --- 4. OWASP Mitigations: Rate Limiting & Versioning & CORS ---
+// --- 3. OWASP Mitigations: Rate Limiting & Versioning & CORS ---
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -79,6 +74,11 @@ builder.Services.AddApiVersioning(options =>
     options.DefaultApiVersion = new ApiVersion(1, 0);
     options.AssumeDefaultVersionWhenUnspecified = true;
     options.ReportApiVersions = true;
+})
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
 });
 
 // --- Documentacion OpenAPI ---

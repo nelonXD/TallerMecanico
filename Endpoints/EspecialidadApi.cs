@@ -1,30 +1,45 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
+using TallerMecanico.ValidacionesDTO;
 namespace TallerMecanico.Endpoints
 {
     public static class EspecialidadApi
     {
         public static void MapEspecialidadApi(this WebApplication app)
         {
-            var especialidades = app.MapGroup("/api/especialidad").WithTags("Especialidad");
+            var especialidades = app.MapVersionedV1Group("especialidad", "Especialidad");
 
             especialidades.MapGet("/", async (TallerMecanicoDbContext db) => await db.Especialidades.ToListAsync());
 
-
-
-            especialidades.MapPost("/", async (Especialidade especialidad, TallerMecanicoDbContext db) =>
+            especialidades.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
             {
-                db.Especialidades.Add(especialidad);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/especialidad/{especialidad.EspecialidadId}", especialidad);
+                var especialidad = await db.Especialidades.FindAsync(id);
+                return especialidad is not null ? Results.Ok(especialidad) : Results.NotFound();
             });
 
-            especialidades.MapPut("/{id:int}", async (int id, Especialidade especialidad, TallerMecanicoDbContext db) =>
+            especialidades.MapPost("/", async (EspecialidadDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var especialidad = new Especialidade
+                {
+                    Nombre = dto.Nombre,
+                    Descripcion = dto.Descripcion
+                };
+
+                db.Especialidades.Add(especialidad);
+                await db.SaveChangesAsync();
+                return Results.Created($"/api/v1/especialidad/{especialidad.EspecialidadId}", especialidad);
+            });
+
+            especialidades.MapPut("/{id:int}", async (int id, EspecialidadDTO dto, TallerMecanicoDbContext db) =>
+            {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
                 var existingEspecialidad = await db.Especialidades.FindAsync(id);
                 if (existingEspecialidad is null) return Results.NotFound();
-                existingEspecialidad.Nombre = especialidad.Nombre;
-                existingEspecialidad.Descripcion = especialidad.Descripcion;
+                existingEspecialidad.Nombre = dto.Nombre;
+                existingEspecialidad.Descripcion = dto.Descripcion;
                 await db.SaveChangesAsync();
                 return Results.NoContent();
             });

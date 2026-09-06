@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
+using TallerMecanico.ValidacionesDTO;
 
 namespace TallerMecanico.Endpoints
 {
@@ -7,7 +8,7 @@ namespace TallerMecanico.Endpoints
     {
         public static void MapModeloApi(this WebApplication app)
         {
-            var grupo = app.MapGroup("/api/modelo").WithTags("Modelo");
+            var grupo = app.MapVersionedV1Group("modelo", "Modelo");
             grupo.MapGet("/", async (TallerMecanicoDbContext context) =>
             {
                 var modelos = await context.Modelos.ToListAsync();
@@ -18,18 +19,30 @@ namespace TallerMecanico.Endpoints
                 var modelo = await context.Modelos.FindAsync(id);
                 return modelo is not null ? Results.Ok(modelo) : Results.NotFound();
             });
-            grupo.MapPost("/", async (Modelo modelo, TallerMecanicoDbContext context) =>
+            grupo.MapPost("/", async (ModeloDTO dto, TallerMecanicoDbContext context) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var modelo = new Modelo
+                {
+                    Nombre = dto.Nombre,
+                    MarcaId = dto.MarcaId
+                };
+
                 context.Modelos.Add(modelo);
                 await context.SaveChangesAsync();
-                return Results.Created($"/api/modelo/{modelo.MarcaId}", modelo);
+                return Results.Created($"/api/v1/modelo/{modelo.ModeloId}", modelo);
             });
-            grupo.MapPut("/{id:int}", async (int id, Modelo updatedModelo, TallerMecanicoDbContext context) =>
+            grupo.MapPut("/{id:int}", async (int id, ModeloDTO dto, TallerMecanicoDbContext context) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
                 var modelo = await context.Modelos.FindAsync(id);
                 if (modelo is null) return Results.NotFound();
-                modelo.Nombre = updatedModelo.Nombre;
-                modelo.MarcaId = updatedModelo.MarcaId;
+                
+                modelo.Nombre = dto.Nombre;
+                modelo.MarcaId = dto.MarcaId;
+                
                 await context.SaveChangesAsync();
                 return Results.NoContent();
             });

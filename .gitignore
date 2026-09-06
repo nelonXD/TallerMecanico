@@ -3,6 +3,15 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Configuración local con secretos (usar variables de entorno o User Secrets)
+appsettings.json
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+!appsettings.example.json
+buildverify/
+
 # dotenv files
 .env
 
@@ -484,3 +493,5 @@ s t a r t - a p i . p s 1 
  
  start-api.ps1
 start-api.ps1
+a p p s e t t i n g s . D e v e l o p m e n t . j s o n  
+ 

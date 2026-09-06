@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using FluentValidation;
 using TallerMecanico.Models;
 using TallerMecanico.Repositories;
+using TallerMecanico.ValidacionesDTO;
 using Asp.Versioning;
 using Asp.Versioning.Builder;
 
@@ -36,35 +36,36 @@ namespace TallerMecanico.Endpoints
                 return cliente is not null ? Results.Ok(cliente) : Results.NotFound();
             });
 
-            clientes.MapPost("/", async (Cliente cliente, IClienteRepository repository, IValidator<Cliente> validator) =>
+            clientes.MapPost("/", async (ClienteDTO dto, IClienteRepository repository) =>
             {
-                var validationResult = await validator.ValidateAsync(cliente);
-                if (!validationResult.IsValid)
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var cliente = new Cliente
                 {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+                    Nombre = dto.Nombre,
+                    Apellido = dto.Apellido,
+                    Telefono = dto.Telefono,
+                    Correo = dto.Correo,
+                    Direccion = dto.Direccion
+                };
 
                 await repository.AddAsync(cliente);
                 await repository.SaveChangesAsync();
                 return Results.Created($"/api/v1/clientes/{cliente.ClienteId}", cliente);
             });
 
-            clientes.MapPut("/{id:int}", async (int id, Cliente updatedCliente, IClienteRepository repository, IValidator<Cliente> validator) =>
+            clientes.MapPut("/{id:int}", async (int id, ClienteDTO dto, IClienteRepository repository) =>
             {
-                var validationResult = await validator.ValidateAsync(updatedCliente);
-                if (!validationResult.IsValid)
-                {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
                 var cliente = await repository.GetByIdAsync(id);
                 if (cliente is null) return Results.NotFound();
 
-                cliente.Nombre = updatedCliente.Nombre;
-                cliente.Apellido = updatedCliente.Apellido;
-                cliente.Telefono = updatedCliente.Telefono;
-                cliente.Correo = updatedCliente.Correo;
-                cliente.Direccion = updatedCliente.Direccion;
+                cliente.Nombre = dto.Nombre;
+                cliente.Apellido = dto.Apellido;
+                cliente.Telefono = dto.Telefono;
+                cliente.Correo = dto.Correo;
+                cliente.Direccion = dto.Direccion;
 
                 repository.Update(cliente);
                 await repository.SaveChangesAsync();

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using FluentValidation;
 using TallerMecanico.Models;
 using TallerMecanico.Repositories;
+using TallerMecanico.ValidacionesDTO;
 using Asp.Versioning;
 using Asp.Versioning.Builder;
 
@@ -36,36 +36,38 @@ namespace TallerMecanico.Endpoints
                 return orden is not null ? Results.Ok(orden) : Results.NotFound();
             });
 
-            ordenesTrabajo.MapPost("/", async (OrdenesTrabajo orden, IOrdenesTrabajoRepository repository, IValidator<OrdenesTrabajo> validator) =>
+            ordenesTrabajo.MapPost("/", async (OrdenTrabajoDTO dto, IOrdenesTrabajoRepository repository) =>
             {
-                var validationResult = await validator.ValidateAsync(orden);
-                if (!validationResult.IsValid)
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var orden = new OrdenesTrabajo
                 {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+                    FechaIngreso = dto.FechaIngreso,
+                    Estado = dto.Estado,
+                    Observaciones = dto.Observaciones,
+                    ClienteId = dto.ClienteId,
+                    VehiculoId = dto.VehiculoId,
+                    MecanicoId = dto.MecanicoId
+                };
 
                 await repository.AddAsync(orden);
                 await repository.SaveChangesAsync();
                 return Results.Created($"/api/v1/ordenes-trabajo/{orden.OrdenId}", orden);
             });
 
-            ordenesTrabajo.MapPut("/{id:int}", async (int id, OrdenesTrabajo updatedOrden, IOrdenesTrabajoRepository repository, IValidator<OrdenesTrabajo> validator) =>
+            ordenesTrabajo.MapPut("/{id:int}", async (int id, OrdenTrabajoDTO dto, IOrdenesTrabajoRepository repository) =>
             {
-                var validationResult = await validator.ValidateAsync(updatedOrden);
-                if (!validationResult.IsValid)
-                {
-                    return Results.ValidationProblem(validationResult.ToDictionary());
-                }
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
                 var orden = await repository.GetByIdAsync(id);
                 if (orden is null) return Results.NotFound();
                 
-                orden.Observaciones = updatedOrden.Observaciones;
-                orden.FechaIngreso = updatedOrden.FechaIngreso;
-                orden.Estado = updatedOrden.Estado;
-                orden.ClienteId = updatedOrden.ClienteId;
-                orden.VehiculoId = updatedOrden.VehiculoId;
-                orden.MecanicoId = updatedOrden.MecanicoId;
+                orden.Observaciones = dto.Observaciones;
+                orden.FechaIngreso = dto.FechaIngreso;
+                orden.Estado = dto.Estado;
+                orden.ClienteId = dto.ClienteId;
+                orden.VehiculoId = dto.VehiculoId;
+                orden.MecanicoId = dto.MecanicoId;
 
                 repository.Update(orden);
                 await repository.SaveChangesAsync();

@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
+using TallerMecanico.ValidacionesDTO;
 
 namespace TallerMecanico.Endpoints
 {
@@ -7,7 +8,7 @@ namespace TallerMecanico.Endpoints
     {
         public static void MapMarcaApi(this WebApplication app)
         {
-            var marca = app.MapGroup("/api/marca").WithTags("Marca");
+            var marca = app.MapVersionedV1Group("marca", "Marca");
             
             marca.MapGet("/", async (TallerMecanicoDbContext db) => await db.Marcas.ToListAsync());
 
@@ -17,18 +18,27 @@ namespace TallerMecanico.Endpoints
                 return marca is not null ? Results.Ok(marca) : Results.NotFound();
             });
 
-            marca.MapPost("/", async (Marca marca, TallerMecanicoDbContext db) =>
+            marca.MapPost("/", async (MarcaDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
+                var marca = new Marca
+                {
+                    Nombre = dto.Nombre
+                };
+
                 db.Marcas.Add(marca);
                 await db.SaveChangesAsync();
-                return Results.Created($"/api/marca/{marca.MarcaId}", marca);
+                return Results.Created($"/api/v1/marca/{marca.MarcaId}", marca);
             });
 
-            marca.MapPut("/{id:int}", async (int id, Marca updatedMarca, TallerMecanicoDbContext db) =>
+            marca.MapPut("/{id:int}", async (int id, MarcaDTO dto, TallerMecanicoDbContext db) =>
             {
+                if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
+
                 var marca = await db.Marcas.FindAsync(id);
                 if (marca is null) return Results.NotFound();
-                marca.Nombre = updatedMarca.Nombre;
+                marca.Nombre = dto.Nombre;
                 await db.SaveChangesAsync();
                 return Results.NoContent();
             });
