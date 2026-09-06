@@ -15,6 +15,9 @@ namespace TallerMecanico.Repositories
                 .Include(o => o.Cliente)
                 .Include(o => o.Mecanico)
                 .Include(o => o.Vehiculo)
+                .Include(o => o.Pago)
+                .Include(o => o.DetalleRepuestos)
+                .Include(o => o.DetalleServicios)
                 .ToListAsync();
         }
 
@@ -24,6 +27,9 @@ namespace TallerMecanico.Repositories
                 .Include(o => o.Cliente)
                 .Include(o => o.Mecanico)
                 .Include(o => o.Vehiculo)
+                .Include(o => o.Pago)
+                .Include(o => o.DetalleRepuestos)
+                .Include(o => o.DetalleServicios)
                 .FirstOrDefaultAsync(o => o.OrdenId == id);
         }
     }

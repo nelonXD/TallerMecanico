@@ -19,7 +19,7 @@ namespace TallerMecanico.Endpoints
                 return p is not null ? Results.Ok(p) : Results.NotFound();
             });
             
-            pago.MapPost("/", async (PagoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) =>
+            pago.MapPost("/", async (PagoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository, [Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository ordenesRepo) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -34,6 +34,16 @@ namespace TallerMecanico.Endpoints
 
                 await repository.AddAsync(p);
                 await repository.SaveChangesAsync();
+
+                // Actualizar automáticamente el estado de la orden de trabajo si el pago se completó
+                var orden = await ordenesRepo.GetByIdAsync(dto.OrdenId);
+                if (orden is not null && !string.IsNullOrWhiteSpace(dto.Estado))
+                {
+                    orden.Estado = dto.Estado;
+                    ordenesRepo.Update(orden);
+                    await ordenesRepo.SaveChangesAsync();
+                }
+
                 return Results.Created($"/api/v1/pago/{p.PagoId}", p);
             });
             
