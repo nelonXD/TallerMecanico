@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
+
 namespace TallerMecanico.Endpoints
 {
     public static class ServicioApi
@@ -9,54 +11,56 @@ namespace TallerMecanico.Endpoints
         {
             var servicio = app.MapVersionedV1Group("servicios", "Servicios");
 
-            servicio.MapGet("/", async (TallerMecanicoDbContext db) => await db.Servicios.ToListAsync());
+            servicio.MapGet("/", async ([Microsoft.AspNetCore.Mvc.FromServices] IServicioRepository repository) => await repository.GetAllAsync());
 
-            servicio.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            servicio.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IServicioRepository repository) =>
             {
-                var servicio = await db.Servicios.FindAsync(id);
-                return servicio is not null ? Results.Ok(servicio) : Results.NotFound();
+                var s = await repository.GetByIdAsync(id);
+                return s is not null ? Results.Ok(s) : Results.NotFound();
             });
 
-            servicio.MapPost("/", async (ServicioDTO dto, TallerMecanicoDbContext db) =>
+            servicio.MapPost("/", async (ServicioDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IServicioRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var servicio = new Servicio
+                var s = new Servicio
                 {
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion,
                     Costo = dto.Costo
                 };
 
-                db.Servicios.Add(servicio);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/v1/servicios/{servicio.ServicioId}", servicio);
+                await repository.AddAsync(s);
+                await repository.SaveChangesAsync();
+                return Results.Created($"/api/v1/servicios/{s.ServicioId}", s);
             });
 
-            servicio.MapPut("/{id:int}", async (int id, ServicioDTO dto, TallerMecanicoDbContext db) =>
+            servicio.MapPut("/{id:int}", async (int id, ServicioDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IServicioRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var servicio = await db.Servicios.FindAsync(id);
-                if (servicio is null) return Results.NotFound();
+                var s = await repository.GetByIdAsync(id);
+                if (s is null) return Results.NotFound();
                 
-                servicio.Nombre = dto.Nombre;
-                servicio.Descripcion = dto.Descripcion;
-                servicio.Costo = dto.Costo;
+                s.Nombre = dto.Nombre;
+                s.Descripcion = dto.Descripcion;
+                s.Costo = dto.Costo;
                 
-                await db.SaveChangesAsync();
+                repository.Update(s);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
-
-            servicio.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            servicio.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IServicioRepository repository) =>
             {
-                var servicio = await db.Servicios.FindAsync(id);
-                if (servicio is null) return Results.NotFound();
-                db.Servicios.Remove(servicio);
-                await db.SaveChangesAsync();
+                var s = await repository.GetByIdAsync(id);
+                if (s is null) return Results.NotFound();
+                repository.Remove(s);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
         }
     }
 }
+
+

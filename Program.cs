@@ -39,8 +39,19 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<TallerMecanicoDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("miconexion")));
 
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
 builder.Services.AddScoped<IOrdenesTrabajoRepository, OrdenesTrabajoRepository>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IRolRepository, RolRepository>();
+builder.Services.AddScoped<IEspecialidadRepository, EspecialidadRepository>();
+builder.Services.AddScoped<IMecanicoRepository, MecanicoRepository>();
+builder.Services.AddScoped<IModeloRepository, ModeloRepository>();
+builder.Services.AddScoped<IPagoRepository, PagoRepository>();
+builder.Services.AddScoped<IRepuestoRepository, RepuestoRepository>();
+builder.Services.AddScoped<IMarcaRepository, MarcaRepository>();
+builder.Services.AddScoped<IServicioRepository, ServicioRepository>();
+builder.Services.AddScoped<IVehiculoRepository, VehiculoRepository>();
 builder.Services.AddScoped<AuthService>();
 
 // --- 3. OWASP Mitigations: Rate Limiting & Versioning & CORS ---

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -9,19 +10,19 @@ namespace TallerMecanico.Endpoints
         public static void MapVehiculoApi(this WebApplication app)
         {
             var vehiculo = app.MapVersionedV1Group("vehiculos", "Vehiculos");
-            vehiculo.MapGet("/", async (TallerMecanicoDbContext db) => await db.Vehiculos.ToListAsync());
+            vehiculo.MapGet("/", async ([Microsoft.AspNetCore.Mvc.FromServices] IVehiculoRepository repository) => await repository.GetAllAsync());
 
-            vehiculo.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            vehiculo.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IVehiculoRepository repository) =>
             {
-                var vehiculo = await db.Vehiculos.FindAsync(id);
-                return vehiculo is not null ? Results.Ok(vehiculo) : Results.NotFound();
+                var v = await repository.GetByIdAsync(id);
+                return v is not null ? Results.Ok(v) : Results.NotFound();
             });
 
-            vehiculo.MapPost("/", async (VehiculoDTO dto, TallerMecanicoDbContext db) =>
+            vehiculo.MapPost("/", async (VehiculoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IVehiculoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var vehiculo = new Vehiculo
+                var v = new Vehiculo
                 {
                     Patente = dto.Patente,
                     Anio = dto.Anio,
@@ -30,40 +31,39 @@ namespace TallerMecanico.Endpoints
                     ModeloId = dto.ModeloId
                 };
 
-                db.Vehiculos.Add(vehiculo);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/v1/vehiculos/{vehiculo.VehiculoId}", vehiculo);
+                await repository.AddAsync(v);
+                await repository.SaveChangesAsync();
+                return Results.Created($"/api/v1/vehiculos/{v.VehiculoId}", v);
             });
 
-            vehiculo.MapPut("/{id:int}", async (int id, VehiculoDTO dto, TallerMecanicoDbContext db) =>
+            vehiculo.MapPut("/{id:int}", async (int id, VehiculoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IVehiculoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var vehiculo = await db.Vehiculos.FindAsync(id);
-                if (vehiculo is null) return Results.NotFound();
+                var v = await repository.GetByIdAsync(id);
+                if (v is null) return Results.NotFound();
                 
-                vehiculo.Patente = dto.Patente;
-                vehiculo.Anio = dto.Anio;
-                vehiculo.Color = dto.Color;
-                vehiculo.ClienteId = dto.ClienteId;
-                vehiculo.ModeloId = dto.ModeloId;
+                v.Patente = dto.Patente;
+                v.Anio = dto.Anio;
+                v.Color = dto.Color;
+                v.ClienteId = dto.ClienteId;
+                v.ModeloId = dto.ModeloId;
                 
-                await db.SaveChangesAsync();
+                repository.Update(v);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
-            vehiculo.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            vehiculo.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IVehiculoRepository repository) =>
             {
-                var vehiculo = await db.Vehiculos.FindAsync(id);
-                if (vehiculo is null) return Results.NotFound();
-                db.Vehiculos.Remove(vehiculo);
-                await db.SaveChangesAsync();
+                var v = await repository.GetByIdAsync(id);
+                if (v is null) return Results.NotFound();
+                repository.Remove(v);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
-
-
         }
-        
-
     }
 }
+
+

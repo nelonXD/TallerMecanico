@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
+
 namespace TallerMecanico.Endpoints
 {
     public static class RolApi
@@ -9,51 +11,54 @@ namespace TallerMecanico.Endpoints
         {
             var rol = app.MapVersionedV1Group("rol", "Rol");
 
-            rol.MapGet("/",async(TallerMecanicoDbContext db) => await db.Roles.ToListAsync());
+            rol.MapGet("/", async([Microsoft.AspNetCore.Mvc.FromServices] IRolRepository repository) => await repository.GetAllAsync());
 
-            rol.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            rol.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IRolRepository repository) =>
             {
-                var rol = await db.Roles.FindAsync(id);
-                return rol is not null ? Results.Ok(rol) : Results.NotFound();
+                var r = await repository.GetByIdAsync(id);
+                return r is not null ? Results.Ok(r) : Results.NotFound();
             });
 
-            rol.MapPost("/", async (RolDTO dto, TallerMecanicoDbContext db) =>
+            rol.MapPost("/", async (RolDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IRolRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var rol = new Role
+                var r = new Role
                 {
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion
                 };
 
-                db.Roles.Add(rol);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/v1/rol/{rol.RolId}", rol);
+                await repository.AddAsync(r);
+                await repository.SaveChangesAsync();
+                return Results.Created($"/api/v1/rol/{r.RolId}", r);
             });
 
-            rol.MapPut("/{id:int}", async (int id, RolDTO dto, TallerMecanicoDbContext db) =>
+            rol.MapPut("/{id:int}", async (int id, RolDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IRolRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var existingRol = await db.Roles.FindAsync(id);
+                var existingRol = await repository.GetByIdAsync(id);
                 if (existingRol is null) return Results.NotFound();
                 
                 existingRol.Nombre = dto.Nombre;
                 existingRol.Descripcion = dto.Descripcion;
                 
-                await db.SaveChangesAsync();
+                repository.Update(existingRol);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
-            rol.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            rol.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IRolRepository repository) =>
             {
-                var rol = await db.Roles.FindAsync(id);
-                if (rol is null) return Results.NotFound();
-                db.Roles.Remove(rol);
-                await db.SaveChangesAsync();
+                var r = await repository.GetByIdAsync(id);
+                if (r is null) return Results.NotFound();
+                repository.Remove(r);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
         }
     }
 }
+
+

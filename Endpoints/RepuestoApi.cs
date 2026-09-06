@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -10,19 +11,19 @@ namespace TallerMecanico.Endpoints
         {
             var repuesto = app.MapVersionedV1Group("repuestos", "Repuestos");
             
-            repuesto.MapGet("/", async(TallerMecanicoDbContext db) => await db.Repuestos.ToListAsync());
+            repuesto.MapGet("/", async([Microsoft.AspNetCore.Mvc.FromServices] IRepuestoRepository repository) => await repository.GetAllAsync());
 
-            repuesto.MapGet("/{id}", async (int id, TallerMecanicoDbContext db) =>
+            repuesto.MapGet("/{id}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IRepuestoRepository repository) =>
             {
-                var repuesto = await db.Repuestos.FindAsync(id);
-                return repuesto is not null ? Results.Ok(repuesto) : Results.NotFound();
+                var r = await repository.GetByIdAsync(id);
+                return r is not null ? Results.Ok(r) : Results.NotFound();
             });
 
-            repuesto.MapPost("/", async (RepuestoDTO dto, TallerMecanicoDbContext db) =>
+            repuesto.MapPost("/", async (RepuestoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IRepuestoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var repuesto = new Repuesto
+                var r = new Repuesto
                 {
                     Nombre = dto.Nombre,
                     Descripcion = dto.Descripcion,
@@ -30,35 +31,38 @@ namespace TallerMecanico.Endpoints
                     Stock = dto.Stock
                 };
 
-                db.Repuestos.Add(repuesto);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/v1/repuestos/{repuesto.RepuestoId}", repuesto);
+                await repository.AddAsync(r);
+                await repository.SaveChangesAsync();
+                return Results.Created($"/api/v1/repuestos/{r.RepuestoId}", r);
             });
             
-            repuesto.MapPut("/{id}", async (int id, RepuestoDTO dto, TallerMecanicoDbContext db) =>
+            repuesto.MapPut("/{id}", async (int id, RepuestoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IRepuestoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var repuesto = await db.Repuestos.FindAsync(id);
-                if (repuesto is null) return Results.NotFound();
+                var r = await repository.GetByIdAsync(id);
+                if (r is null) return Results.NotFound();
                 
-                repuesto.Nombre = dto.Nombre;
-                repuesto.Descripcion = dto.Descripcion;
-                repuesto.Precio = dto.Precio;
-                repuesto.Stock = dto.Stock;
+                r.Nombre = dto.Nombre;
+                r.Descripcion = dto.Descripcion;
+                r.Precio = dto.Precio;
+                r.Stock = dto.Stock;
                 
-                await db.SaveChangesAsync();
+                repository.Update(r);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
-            repuesto.MapDelete("/{id}", async (int id, TallerMecanicoDbContext db) =>
+            repuesto.MapDelete("/{id}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IRepuestoRepository repository) =>
             {
-                var repuesto = await db.Repuestos.FindAsync(id);
-                if (repuesto is null) return Results.NotFound();
-                db.Repuestos.Remove(repuesto);
-                await db.SaveChangesAsync();
+                var r = await repository.GetByIdAsync(id);
+                if (r is null) return Results.NotFound();
+                repository.Remove(r);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
         }
     }
 }
+
+

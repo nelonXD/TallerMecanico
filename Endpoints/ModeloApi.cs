@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -9,17 +10,20 @@ namespace TallerMecanico.Endpoints
         public static void MapModeloApi(this WebApplication app)
         {
             var grupo = app.MapVersionedV1Group("modelo", "Modelo");
-            grupo.MapGet("/", async (TallerMecanicoDbContext context) =>
+            
+            grupo.MapGet("/", async ([Microsoft.AspNetCore.Mvc.FromServices] IModeloRepository repository) =>
             {
-                var modelos = await context.Modelos.ToListAsync();
+                var modelos = await repository.GetAllAsync();
                 return Results.Ok(modelos);
             });
-            grupo.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext context) =>
+            
+            grupo.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IModeloRepository repository) =>
             {
-                var modelo = await context.Modelos.FindAsync(id);
+                var modelo = await repository.GetByIdAsync(id);
                 return modelo is not null ? Results.Ok(modelo) : Results.NotFound();
             });
-            grupo.MapPost("/", async (ModeloDTO dto, TallerMecanicoDbContext context) =>
+            
+            grupo.MapPost("/", async (ModeloDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IModeloRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -29,31 +33,36 @@ namespace TallerMecanico.Endpoints
                     MarcaId = dto.MarcaId
                 };
 
-                context.Modelos.Add(modelo);
-                await context.SaveChangesAsync();
+                await repository.AddAsync(modelo);
+                await repository.SaveChangesAsync();
                 return Results.Created($"/api/v1/modelo/{modelo.ModeloId}", modelo);
             });
-            grupo.MapPut("/{id:int}", async (int id, ModeloDTO dto, TallerMecanicoDbContext context) =>
+            
+            grupo.MapPut("/{id:int}", async (int id, ModeloDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IModeloRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var modelo = await context.Modelos.FindAsync(id);
+                var modelo = await repository.GetByIdAsync(id);
                 if (modelo is null) return Results.NotFound();
                 
                 modelo.Nombre = dto.Nombre;
                 modelo.MarcaId = dto.MarcaId;
                 
-                await context.SaveChangesAsync();
+                repository.Update(modelo);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
-            grupo.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext context) =>
+            
+            grupo.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IModeloRepository repository) =>
             {
-                var modelo = await context.Modelos.FindAsync(id);
+                var modelo = await repository.GetByIdAsync(id);
                 if (modelo is null) return Results.NotFound();
-                context.Modelos.Remove(modelo);
-                await context.SaveChangesAsync();
+                repository.Remove(modelo);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
         }
     }
 }
+
+

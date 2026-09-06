@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -9,17 +10,20 @@ namespace TallerMecanico.Endpoints
         public static void MapPagoApi(this WebApplication app)
         {
             var pago = app.MapVersionedV1Group("pago", "Pago");
-            pago.MapGet("/", async (TallerMecanicoDbContext db) => await db.Pagos.ToListAsync());
-            pago.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            
+            pago.MapGet("/", async ([Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) => await repository.GetAllAsync());
+            
+            pago.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) =>
             {
-                var pago = await db.Pagos.FindAsync(id);
-                return pago is not null ? Results.Ok(pago) : Results.NotFound();
+                var p = await repository.GetByIdAsync(id);
+                return p is not null ? Results.Ok(p) : Results.NotFound();
             });
-            pago.MapPost("/", async (PagoDTO dto, TallerMecanicoDbContext db) =>
+            
+            pago.MapPost("/", async (PagoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var pago = new Pago
+                var p = new Pago
                 {
                     OrdenId = dto.OrdenId,
                     MontoTotal = dto.MontoTotal,
@@ -28,34 +32,39 @@ namespace TallerMecanico.Endpoints
                     Estado = dto.Estado
                 };
 
-                db.Pagos.Add(pago);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/v1/pago/{pago.PagoId}", pago);
+                await repository.AddAsync(p);
+                await repository.SaveChangesAsync();
+                return Results.Created($"/api/v1/pago/{p.PagoId}", p);
             });
-            pago.MapPut("/{id:int}", async (int id, PagoDTO dto, TallerMecanicoDbContext db) =>
+            
+            pago.MapPut("/{id:int}", async (int id, PagoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var pago = await db.Pagos.FindAsync(id);
-                if (pago is null) return Results.NotFound();
+                var p = await repository.GetByIdAsync(id);
+                if (p is null) return Results.NotFound();
                 
-                pago.OrdenId = dto.OrdenId;
-                pago.MontoTotal = dto.MontoTotal;
-                pago.MetodoPago = dto.MetodoPago;
-                pago.FechaPago = dto.FechaPago;
-                pago.Estado = dto.Estado;
+                p.OrdenId = dto.OrdenId;
+                p.MontoTotal = dto.MontoTotal;
+                p.MetodoPago = dto.MetodoPago;
+                p.FechaPago = dto.FechaPago;
+                p.Estado = dto.Estado;
                 
-                await db.SaveChangesAsync();
+                repository.Update(p);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
-            pago.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            
+            pago.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IPagoRepository repository) =>
             {
-                var pago = await db.Pagos.FindAsync(id);
-                if (pago is null) return Results.NotFound();
-                db.Pagos.Remove(pago);
-                await db.SaveChangesAsync();
+                var p = await repository.GetByIdAsync(id);
+                if (p is null) return Results.NotFound();
+                repository.Remove(p);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
         }
     }
 }
+
+

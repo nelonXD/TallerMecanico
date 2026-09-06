@@ -1,6 +1,5 @@
 using TallerMecanico.Models;
 using TallerMecanico.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -8,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using TallerMecanico.ValidacionesDTO;
 using Microsoft.AspNetCore.Authorization;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -17,10 +17,11 @@ namespace TallerMecanico.Endpoints
         {
             var user = app.MapVersionedV1Group("usuarios", "Usuarios");
 
-            user.MapPost("/registro", async (RegistroRequest request, TallerMecanicoDbContext db, AuthService auth) => {
+            user.MapPost("/registro", async (RegistroRequest request, [Microsoft.AspNetCore.Mvc.FromServices] IUsuarioRepository usuarioRepo, [Microsoft.AspNetCore.Mvc.FromServices] IRolRepository rolRepo, AuthService auth) => {
                     if (request.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                    var rolMecanico = await db.Roles.SingleOrDefaultAsync(rol => rol.Nombre == "Mecanico");
+                    var roles = await rolRepo.FindAsync(rol => rol.Nombre == "Mecanico");
+                    var rolMecanico = roles.SingleOrDefault();
                     if (rolMecanico is null) return Results.Problem("El rol predeterminado no está configurado.", statusCode: StatusCodes.Status500InternalServerError);
 
                     var usuario = new Usuario
@@ -31,18 +32,16 @@ namespace TallerMecanico.Endpoints
                     };
 
                     usuario.PasswordHash = auth.HashPassword(usuario, request.Password);
-                    db.Usuarios.Add(usuario);
-                    await db.SaveChangesAsync();
+                    await usuarioRepo.AddAsync(usuario);
+                    await usuarioRepo.SaveChangesAsync();
                     
                     return Results.Created($"/api/v1/usuarios/{usuario.UsuarioId}", new { usuario.UsuarioId, usuario.Nombre, usuario.Correo });
                 }).AllowAnonymous();
 
-            user.MapPost("/login", async (LoginRequest login, TallerMecanicoDbContext db,
+            user.MapPost("/login", async (LoginRequest login, [Microsoft.AspNetCore.Mvc.FromServices] IUsuarioRepository usuarioRepo,
                 IConfiguration config) =>
             {
-                var usuario = db.Usuarios
-                    .Include(u => u.Rol)
-                    .FirstOrDefault(u => u.Nombre == login.NombreUsuario);
+                var usuario = await usuarioRepo.GetUsuarioConRolByNombreAsync(login.NombreUsuario);
 
                 if (login.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -82,3 +81,5 @@ namespace TallerMecanico.Endpoints
         public record LoginRequest(string NombreUsuario, string Password);
     }
 }
+
+

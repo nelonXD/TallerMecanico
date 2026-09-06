@@ -24,19 +24,19 @@ namespace TallerMecanico.Endpoints
             // Requiere autenticación y rol Admin o Mecanico
             ordenesTrabajo.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin, Mecanico" });
 
-            ordenesTrabajo.MapGet("/", async (IOrdenesTrabajoRepository repository) =>
+            ordenesTrabajo.MapGet("/", async ([Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository repository) =>
             {
                 var ordenes = await repository.GetOrdenesConDetallesAsync();
                 return Results.Ok(ordenes);
             });
 
-            ordenesTrabajo.MapGet("/{id:int}", async (int id, IOrdenesTrabajoRepository repository) =>
+            ordenesTrabajo.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository repository) =>
             {
                 var orden = await repository.GetOrdenConDetallesByIdAsync(id);
                 return orden is not null ? Results.Ok(orden) : Results.NotFound();
             });
 
-            ordenesTrabajo.MapPost("/", async (OrdenTrabajoDTO dto, IOrdenesTrabajoRepository repository) =>
+            ordenesTrabajo.MapPost("/", async (OrdenTrabajoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -55,7 +55,7 @@ namespace TallerMecanico.Endpoints
                 return Results.Created($"/api/v1/ordenes-trabajo/{orden.OrdenId}", orden);
             });
 
-            ordenesTrabajo.MapPut("/{id:int}", async (int id, OrdenTrabajoDTO dto, IOrdenesTrabajoRepository repository) =>
+            ordenesTrabajo.MapPut("/{id:int}", async (int id, OrdenTrabajoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -75,7 +75,7 @@ namespace TallerMecanico.Endpoints
             });
 
             // Solo Admin puede eliminar
-            ordenesTrabajo.MapDelete("/{id:int}", async (int id, IOrdenesTrabajoRepository repository) =>
+            ordenesTrabajo.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IOrdenesTrabajoRepository repository) =>
             {
                 var orden = await repository.GetByIdAsync(id);
                 if (orden is null) return Results.NotFound();
@@ -87,3 +87,5 @@ namespace TallerMecanico.Endpoints
         }
     }
 }
+
+

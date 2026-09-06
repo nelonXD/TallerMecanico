@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TallerMecanico.Models;
 using TallerMecanico.ValidacionesDTO;
+using TallerMecanico.Repositories;
 
 namespace TallerMecanico.Endpoints
 {
@@ -10,15 +11,15 @@ namespace TallerMecanico.Endpoints
         {
             var mecanico = app.MapVersionedV1Group("mecanicos", "Mecanicos");
 
-            mecanico.MapGet("/", async(TallerMecanicoDbContext db) => await db.Mecanicos.ToListAsync());
+            mecanico.MapGet("/", async([Microsoft.AspNetCore.Mvc.FromServices] IMecanicoRepository repository) => await repository.GetAllAsync());
 
-            mecanico.MapGet("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            mecanico.MapGet("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IMecanicoRepository repository) =>
             {
-                var mecanico = await db.Mecanicos.FindAsync(id);
+                var mecanico = await repository.GetByIdAsync(id);
                 return mecanico is not null ? Results.Ok(mecanico) : Results.NotFound();
             });
 
-            mecanico.MapPost("/", async (MecanicoDTO dto, TallerMecanicoDbContext db) =>
+            mecanico.MapPost("/", async (MecanicoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IMecanicoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
@@ -30,16 +31,16 @@ namespace TallerMecanico.Endpoints
                     EspecialidadId = dto.EspecialidadId
                 };
 
-                db.Mecanicos.Add(mecanicoEntity);
-                await db.SaveChangesAsync();
+                await repository.AddAsync(mecanicoEntity);
+                await repository.SaveChangesAsync();
                 return Results.Created($"/api/v1/mecanicos/{mecanicoEntity.MecanicoId}", mecanicoEntity);
             });
 
-            mecanico.MapPut("/{id:int}", async (int id, MecanicoDTO dto, TallerMecanicoDbContext db) =>
+            mecanico.MapPut("/{id:int}", async (int id, MecanicoDTO dto, [Microsoft.AspNetCore.Mvc.FromServices] IMecanicoRepository repository) =>
             {
                 if (dto.Validar() is { } errorDeValidacion) return errorDeValidacion;
 
-                var mecanicoEntity = await db.Mecanicos.FindAsync(id);
+                var mecanicoEntity = await repository.GetByIdAsync(id);
                 if (mecanicoEntity is null) return Results.NotFound();
                 
                 mecanicoEntity.Nombre = dto.Nombre;
@@ -47,19 +48,22 @@ namespace TallerMecanico.Endpoints
                 mecanicoEntity.Telefono = dto.Telefono;
                 mecanicoEntity.EspecialidadId = dto.EspecialidadId;
                 
-                await db.SaveChangesAsync();
+                repository.Update(mecanicoEntity);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
-            mecanico.MapDelete("/{id:int}", async (int id, TallerMecanicoDbContext db) =>
+            mecanico.MapDelete("/{id:int}", async (int id, [Microsoft.AspNetCore.Mvc.FromServices] IMecanicoRepository repository) =>
             {
-                var mecanico = await db.Mecanicos.FindAsync(id);
+                var mecanico = await repository.GetByIdAsync(id);
                 if (mecanico is null) return Results.NotFound();
-                db.Mecanicos.Remove(mecanico);
-                await db.SaveChangesAsync();
+                repository.Remove(mecanico);
+                await repository.SaveChangesAsync();
                 return Results.NoContent();
             });
 
         }
     }
 }
+
+
